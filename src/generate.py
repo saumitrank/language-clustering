@@ -25,7 +25,7 @@ def authenticate(path_to_key:str):
 
 
 def translate_text(input_text:str="hello world", target_languages:Union[str, list]="de", to_script:str="")->list:
-    """Translate text from one language to one or more. Can also transliterate
+    """Translate text from english to one or more. Can also transliterate
 
     Args:
         input_text (str, optional): Text to be translated. Defaults to "hello world".
