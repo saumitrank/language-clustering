@@ -238,12 +238,7 @@ def add_language_families(path_to_folder:str):
 
         def add_matches(matches):
             if len(matches) and pd.isnull(languages.loc['family', lang]):
-                fam = matches['Family'].value_counts().index[0]
-                if fam=='Indo-European':
-                    languages.loc['family', lang] = matches['classification_glottolog'].value_counts().index[0].split(',')[1]
-                    return
-                
-                languages.loc['family', lang] = fam
+                languages.loc['family', lang] = ','.join(matches['classification_glottolog'].value_counts().index[0].split(',')[:2])
 
         #Match language codes
         matches = asjp_languages[asjp_languages['ISO639P3code']==Language.get(standardize_tag(lang)).to_alpha3()]
@@ -258,8 +253,8 @@ def add_language_families(path_to_folder:str):
         add_matches(matches)
 
         #Add Filipino and Klingon manually
-        languages.loc['family', 'fil'] = 'Austronesian'
-        languages.loc['family', 'tlh-latn'] = 'Artificial'
+        languages.loc['family', 'fil'] = 'Austronesian,Malayo-Polynesian'
+        languages.loc['family', 'tlh-Latn'] = 'Artificial'
 
     print('Adding language family data')
 
@@ -275,27 +270,34 @@ if __name__=="__main__":
 
     print('Generating data')
 
+    # Authenticate
     path_to_key = input('Enter location of key to authenticate translation service: ')
-
     translate.authenticate(path_to_key)
 
+    # Get path to data folder
     path_to_folder = input('Enter location data folder: ')
 
     if not os.path.exists(path_to_folder):
         os.mkdir(path_to_folder)
 
-    print('Generating languages accessible to Azure')
+    # Add azure languages
+    if not os.path.exists(os.path.join(path_to_folder, 'languages.csv')):
+        print('Generating languages accessible to Azure')
+        languages = final_languages()
+        languages.to_csv(os.path.join(path_to_folder, 'languages.csv'))
 
-    languages = final_languages()
+    else:
+        languages = pd.read_csv(os.path.join(path_to_folder, 'languages.csv'))
 
-    languages.to_csv(os.path.join(path_to_folder, 'languages.csv'))
+    # Add ASJP data
+    if not os.path.exists(os.path.join(path_to_folder, 'asjp-languages.csv')):
+        print('Generating ASJP data')
+        get_asjp_data(path_to_folder)
 
-    print('Generating ASJP data')
-
-    get_asjp_data(path_to_folder)
-
+    # Add language families
     add_language_families(path_to_folder)
 
+    #Add translation data
     print('Time to add translations in various languages')
 
     path_to_native_data = os.path.join(path_to_folder, 'data-native.csv')
@@ -318,5 +320,11 @@ if __name__=="__main__":
     print('Adding words from Swadesh list')
 
     add_swadesh_words(path_to_native_data, path_to_transliterate_data)
+
+    print('Adding words from ASJP list')
+
+    asjp_words = list(pd.read_csv(os.path.join(path_to_folder, 'asjp-wordlist.csv'))['Name'].apply(lambda x: x.lower().replace('*', '')))
+
+    add_words_to_data(asjp_words, path_to_native_data, path_to_transliterate_data)
 
     print('Data generation successfully complete')
